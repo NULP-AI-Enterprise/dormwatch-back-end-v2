@@ -8,9 +8,6 @@ REST API server for DormWatch — a dormitory issue tracking system. Built with 
 
 - Python 3.11+
 - PostgreSQL
-- GDAL (geospatial library)
-  - **Windows (Python 3.12):** `pip install GDAL-3.10.1-cp312-cp312-win_amd64.whl` (bundled in repo)
-  - **Other platforms:** Download from [geospatial-wheels](https://github.com/cgohlke/geospatial-wheels/releases)
 
 ### Setup
 

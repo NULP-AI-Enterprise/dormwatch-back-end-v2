@@ -13,8 +13,6 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     libpq-dev \
     binutils \
-    gdal-bin \
-    libgdal-dev \
     && rm -rf /var/lib/apt/lists/*
 # Install dependencies
 COPY requirements.txt /app/
