@@ -12,10 +12,9 @@ urlpatterns = [
     path('complaints/<int:complaint_id>/comments/', views.CommentListView.as_view(), name="comments"),
     path('comments/<int:comment_id>/', views.CommentDeleteView.as_view(), name="delete-comment"),
     path('admin/complaints/<int:complaint_id>/status/', views.AdminComplaintStatusView.as_view(), name = "complaint-status-change"),
-    path('admin/users/<str:user_id>/set-admin/', views.UpdateUserStatusView.as_view(), name='set-user-admin'),
+    path('admin/users/<str:user_id>/set-role/', views.UpdateUserRoleView.as_view(), name='set-user-role'),
     path('profile/', views.UserProfileView.as_view(), name="user-profile"),
-    path('profile/change-room/', views.UpdateUserRoomView.as_view(), name="room-change"),
-    path('complaints/<int:complaint_id>/counter/', views.ComplaintCounterView.as_view(), name='complaint-counter'),
+    path('complaints/<int:complaint_id>/vote/', views.ComplaintVoteView.as_view(), name='complaint-vote'),
 ]
 
 if settings.DEBUG:

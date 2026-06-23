@@ -8,7 +8,7 @@ class IsCustomAdmin(BasePermission):
         
         try:
             profile = UserProfile.objects.get(user=request.user)
-            return profile.is_admin
+            return profile.role and profile.role.role_name.lower() in ['admin', 'адміністратор']
         except UserProfile.DoesNotExist:
             return False
         
