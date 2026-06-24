@@ -22,9 +22,11 @@ class ComplaintView(APIView):
         user_profile = UserProfile.objects.filter(user=request.user).first()
         if not user_profile:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
-        if not user_profile.role or user_profile.role.role_name.lower() not in ['admin', 'адміністратор']:
-            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        is_admin = user_profile.role and user_profile.role.role_name.lower() in ['admin', 'адміністратор']
+        
         complaints = Complaint.objects.all()
+        if not is_admin:
+            complaints = complaints.filter(status='published')
         category_param = request.query_params.get('category')
         status_param = request.query_params.get('status')
         corps_param = request.query_params.get('corps')
@@ -45,12 +47,15 @@ class ComplaintDetailView(APIView):
         user_profile = UserProfile.objects.filter(user=request.user).first()
         if not user_profile:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
-        if not user_profile.role or user_profile.role.role_name.lower() not in ['admin', 'адміністратор']:
-            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        is_admin = user_profile.role and user_profile.role.role_name.lower() in ['admin', 'адміністратор']
+        
         try:
             complaint = Complaint.objects.get(complaint_id=complaint_id)
         except Complaint.DoesNotExist:
             return Response({'error': 'Complaint not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        if not is_admin and complaint.status != 'published':
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         serializer = ComplaintSerializer(complaint)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
