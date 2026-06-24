@@ -1,3 +1,5 @@
+from django.contrib.auth.models import User
+from django.conf import settings
 from rest_framework import serializers
 from .models import Complaint, UserProfile, Comment, DormitoryBuilding, Place, ComplaintCategory, Role, Ticket
 
@@ -89,3 +91,41 @@ class CommentSerializer(serializers.ModelSerializer):
 
     def get_user_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+
+class RegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    confirm_password = serializers.CharField(write_only=True, min_length=8)
+    first_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    place_id = serializers.IntegerField(required=False, allow_null=True)
+
+    def validate_email(self, value):
+        email = value.strip().lower()
+        domain = email.split('@')[-1] if '@' in email else ''
+        allowed = [d.strip().lower() for d in settings.ALLOWED_EMAIL_DOMAINS]
+        if domain not in allowed:
+            raise serializers.ValidationError(
+                f'Email domain @{domain} is not authorized'
+            )
+        if User.objects.filter(email=email).exists():
+            raise serializers.ValidationError('A user with this email already exists')
+        return email
+
+    def validate(self, data):
+        if data.get('password') != data.get('confirm_password'):
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match'})
+        return data
+
+    def create(self, validated_data):
+        email = validated_data['email']
+        password = validated_data['password']
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=password,
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+        )
+        return user

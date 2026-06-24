@@ -1,10 +1,17 @@
 from django.urls import path
 from . import views
+from . import auth_views
 from django.conf import settings
 from django.conf.urls.static import static
 
 
 urlpatterns = [
+    path('auth/login/', auth_views.LoginView.as_view(), name='auth-login'),
+    path('auth/register/', auth_views.RegisterView.as_view(), name='auth-register'),
+    path('auth/refresh/', auth_views.CookieTokenRefreshView.as_view(), name='auth-refresh'),
+    path('auth/logout/', auth_views.LogoutView.as_view(), name='auth-logout'),
+    path('buildings/', auth_views.BuildingListView.as_view(), name='buildings'),
+    path('places/', auth_views.PlaceListView.as_view(), name='places'),
     path('complaints/', views.ComplaintView.as_view(), name='complaint'),
     path('complaints/<int:complaint_id>/', views.ComplaintDetailView.as_view(), name = 'user-complaint-detail'),
     path('me/complaints/', views.UserComplaintView.as_view(), name='user-complaint'),
