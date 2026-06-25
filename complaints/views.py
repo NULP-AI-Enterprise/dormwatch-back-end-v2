@@ -358,13 +358,20 @@ class TicketView(APIView):
         if not user_profile.role or user_profile.role.role_name.lower() not in ['admin', 'адміністратор']:
             return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         tickets = Ticket.objects.all()
+        date_from_param = request.query_params.get('date_from')
+        date_to_param = request.query_params.get('date_to')
         worker_param = request.query_params.get('worker')
         priority_param = request.query_params.get('priority')
         if worker_param:
             tickets = tickets.filter(user_id=worker_param)
         if priority_param:
             tickets = tickets.filter(complaint_id__priority=priority_param)
+        if date_from_param:
+            tickets = tickets.filter(created_at__gte=date_from)
+        if date_to_param:
+            tickets = tickets.filter(created_at__lte=date_to)
         serializer = TicketSerializer(tickets, many=True)
+
         return Response(serializer.data, status=status.HTTP_200_OK)
     def post(self,request):
         user_profile = UserProfile.objects.filter(user=request.user).first()
