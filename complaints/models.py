@@ -11,7 +11,8 @@ COMPLAINT_STATUS = [
 COMPLAINT_PRIORITY = [
     ('low', 'Низький'),
     ('medium', 'Середній'),
-    ('high', 'Високий')
+    ('high', 'Високий'),
+    ('critical', 'Критичний')
 ]
 
 class Role(models.Model):
