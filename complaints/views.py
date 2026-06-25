@@ -149,13 +149,19 @@ class UserComplaintDetailView(APIView):
         user_profile = UserProfile.objects.filter(user=request.user).first()
         if not user_profile:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+            
         try:
-            complaint = Complaint.objects.get(complaint_id=complaint_id, user=user_profile)
+            complaint = Complaint.objects.get(complaint_id=complaint_id)
         except Complaint.DoesNotExist:
             return Response({'error': 'Complaint not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        is_admin = user_profile.role and user_profile.role.role_name.lower() in ['admin', 'адміністратор']
+        
+        if complaint.user != user_profile and not is_admin:
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         complaint.delete()
-        return Response({'status': 'Deleted succesfully'}, status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class UpdateUserRoleView(APIView):
     permission_classes = [IsAdminUser]
@@ -221,7 +227,7 @@ class UserProfileView(APIView):
     def delete(self, request):
         user=request.user
         user.delete()
-        return Response({'status': 'Deleted successfully'},status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class AdminComplaintStatusView(APIView):
     permission_classes = [IsAdminOrCustomAdmin]
@@ -314,7 +320,7 @@ class CommentDeleteView(APIView):
             return Response({'error': 'Permission denied'},status=status.HTTP_403_FORBIDDEN)
 
         comment.delete()
-        return Response({'status': 'Deleted successfully'},status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ComplaintVoteView(APIView):
