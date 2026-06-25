@@ -95,7 +95,7 @@ class Complaint(models.Model):
 
 class Ticket(models.Model):
     ticket_id = models.AutoField(primary_key=True)
-    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, null=True, blank=True)
     complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE)
     deadline = models.DateTimeField(null=True, blank=True)
 

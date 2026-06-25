@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.db.models import F
 from rest_framework import generics, permissions, viewsets
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from .models import Complaint, UserProfile, Comment, DormitoryBuilding, Place, ComplaintCategory, ComplaintVote, Role, Ticket
 from .serializers import ComplaintSerializer, UpdateUserRoleSerializer, ComplaintStatusSerializer, CommentSerializer, UpdateUserSerializer, UserSerializer, UpdateUserPlaceSerializer, TicketSerializer
@@ -335,7 +335,7 @@ class ComplaintVoteView(APIView):
 
 class TicketView(APIView):
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     def get(self,request):
         user_profile = UserProfile.objects.filter(user=request.user).first()
         if not user_profile:
@@ -385,7 +385,7 @@ class TicketView(APIView):
 
 class TicketDetailView(APIView):
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     def get(self, request, ticket_id):
         user_profile = UserProfile.objects.filter(user=request.user).first()
         if not user_profile:
