@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from rest_framework import serializers
 from .models import Complaint, UserProfile, Comment, DormitoryBuilding, Place, ComplaintCategory, Role, Ticket
+from .image_utils import process_complaint_photo
 
 
 
@@ -60,8 +61,16 @@ class ComplaintSerializer(serializers.ModelSerializer):
     user = UserComplaintSerializer(read_only=True)
     class Meta:
         model = Complaint
-        fields = ['complaint_id', 'user', 'title', 'description', 'category', 'status', 'photo_url', 'created_at', 'place', 'priority']
+        fields = ['complaint_id', 'user', 'title', 'description', 'category', 'status', 'photo_url', 'thumbnail', 'created_at', 'place', 'priority']
         read_only_fields = ['complaint_id', 'created_at', 'user', 'status']
+
+    def create(self, validated_data):
+        uploaded_file = validated_data.pop('photo_url', None)
+        if uploaded_file:
+            result = process_complaint_photo(uploaded_file)
+            validated_data['photo_url'] = result['full']
+            validated_data['thumbnail'] = result['thumbnail']
+        return super().create(validated_data)
 
 
 class TicketSerializer(serializers.ModelSerializer):

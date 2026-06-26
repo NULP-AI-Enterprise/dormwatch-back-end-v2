@@ -82,6 +82,7 @@ class Complaint(models.Model):
     description = models.TextField()
     status = models.CharField(max_length=50, choices=COMPLAINT_STATUS, default='pending')
     photo_url = models.ImageField(upload_to='complaint_photos/', blank=True, null=True)
+    thumbnail = models.ImageField(upload_to='complaint_photos/thumbnails/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     category = models.ForeignKey(ComplaintCategory, on_delete=models.CASCADE)
     priority = models.CharField(max_length=50, choices=COMPLAINT_PRIORITY, default='medium')
