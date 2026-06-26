@@ -78,7 +78,16 @@ class RegisterView(APIView):
         with transaction.atomic():
             user = serializer.save()
 
-            role, _ = Role.objects.get_or_create(role_name='student')
+            is_first_user = not UserProfile.objects.exists()
+
+            if is_first_user:
+                role, _ = Role.objects.get_or_create(role_name='admin')
+                user.is_staff = True
+                user.is_superuser = True
+                user.save()
+            else:
+                role, _ = Role.objects.get_or_create(role_name='student')
+
             place = serializer.validated_data.get('place_id')
 
             UserProfile.objects.create(
