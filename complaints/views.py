@@ -30,12 +30,15 @@ class ComplaintView(APIView):
         category_param = request.query_params.get('category')
         status_param = request.query_params.get('status')
         corps_param = request.query_params.get('corps')
+        priority_param = request.query_params.get('priority')
         if category_param:
             complaints = complaints.filter(category_id=category_param)
         if status_param:
             complaints = complaints.filter(status=status_param)
         if corps_param:
             complaints = complaints.filter(user__place__building__name=corps_param)
+        if priority_param:
+            complaints = complaints.filter(priority=priority_param)
         serializer = ComplaintSerializer(complaints, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -355,7 +358,20 @@ class TicketView(APIView):
         if not user_profile.role or user_profile.role.role_name.lower() not in ['admin', 'адміністратор']:
             return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         tickets = Ticket.objects.all()
+        date_from_param = request.query_params.get('date_from')
+        date_to_param = request.query_params.get('date_to')
+        worker_param = request.query_params.get('worker')
+        priority_param = request.query_params.get('priority')
+        if worker_param:
+            tickets = tickets.filter(user_id=worker_param)
+        if priority_param:
+            tickets = tickets.filter(complaint__priority=priority_param)
+        if date_from_param:
+            tickets = tickets.filter(deadline__gte=date_from_param)
+        if date_to_param:
+            tickets = tickets.filter(deadline__lte=date_to_param)
         serializer = TicketSerializer(tickets, many=True)
+
         return Response(serializer.data, status=status.HTTP_200_OK)
     def post(self,request):
         user_profile = UserProfile.objects.filter(user=request.user).first()
