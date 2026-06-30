@@ -3,7 +3,7 @@ from django.db.models import F
 from rest_framework import generics, permissions, viewsets
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
-from .models import Complaint, UserProfile, Comment, DormitoryBuilding, Place, ComplaintCategory, ComplaintVote, Role, Ticket
+from .models import Complaint, UserProfile, Comment, DormitoryBuilding, Place, ComplaintCategory, Role, Ticket
 from .serializers import ComplaintSerializer, UpdateUserRoleSerializer, ComplaintStatusSerializer, CommentSerializer, UpdateUserSerializer, UserSerializer, UpdateUserPlaceSerializer, TicketSerializer
 from rest_framework.response import Response
 from rest_framework.views import APIView

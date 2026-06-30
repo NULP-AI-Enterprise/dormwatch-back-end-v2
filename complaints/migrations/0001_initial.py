@@ -121,17 +121,4 @@ class Migration(migrations.Migration):
                 'db_table': 'comment',
             },
         ),
-        migrations.CreateModel(
-            name='ComplaintVote',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('complaint', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='votes', to='complaints.complaint')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='complaints.userprofile')),
-            ],
-            options={
-                'db_table': 'complaint_vote',
-                'unique_together': {('user', 'complaint')},
-            },
-        ),
     ]
