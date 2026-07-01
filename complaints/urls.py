@@ -21,7 +21,6 @@ urlpatterns = [
     path('admin/complaints/<int:complaint_id>/status/', views.AdminComplaintStatusView.as_view(), name = "complaint-status-change"),
     path('admin/users/<str:user_id>/set-role/', views.UpdateUserRoleView.as_view(), name='set-user-role'),
     path('profile/', views.UserProfileView.as_view(), name="user-profile"),
-    path('complaints/<int:complaint_id>/vote/', views.ComplaintVoteView.as_view(), name='complaint-vote'),
     path('tickets/', views.TicketView.as_view(), name='tickets'),
     path('tickets/<int:ticket_id>/', views.TicketDetailView.as_view(), name='ticket-detail'),
     path('admin/employees/', views.EmployeeListView.as_view(), name='admin-employees'),
