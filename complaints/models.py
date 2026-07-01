@@ -39,6 +39,12 @@ class Place(models.Model):
 
     class Meta:
         db_table = 'place'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['building', 'place_name'],
+                name='unique_building_place_name'
+            )
+        ]
 
 
 class UserProfile(models.Model):
@@ -116,11 +122,3 @@ class Comment(models.Model):
         db_table = 'comment'
 
 
-class ComplaintVote(models.Model):
-    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
-    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name='votes')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'complaint_vote'
-        unique_together = ('user', 'complaint')
