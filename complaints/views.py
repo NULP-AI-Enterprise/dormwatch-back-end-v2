@@ -337,6 +337,18 @@ class CommentListView(APIView):
             if complaint.user != user_profile and not is_admin:
                 return Response({'error': 'Permission denied'},status=status.HTTP_403_FORBIDDEN)
             serializer.save(user=user_profile, complaint_id=complaint_id)
+            
+            if is_admin and complaint.user != user_profile:
+                try:
+                    Notification.objects.create(
+                        user=complaint.user,
+                        title="Новий коментар адміністратора",
+                        message=f"Адміністратор {user_profile.first_name} {user_profile.last_name} прокоментував вашу скаргу: {complaint.title}",
+                        complaint=complaint
+                    )
+                except Exception as e:
+                    print("Failed to create comment notification:", e)
+                    
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
