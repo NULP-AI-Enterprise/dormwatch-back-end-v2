@@ -28,6 +28,8 @@ urlpatterns = [
     path('notifications/', views.NotificationListView.as_view(), name='notifications-list'),
     path('notifications/<int:notification_id>/', views.NotificationMarkReadView.as_view(), name='notification-mark-read'),
     path('notifications/mark-all-read/', views.NotificationMarkAllReadView.as_view(), name='notifications-mark-all-read'),
+    path('campus-status/', views.CampusStatusView.as_view(), name='campus-status'),
+    path('announcements-history/', views.AnnouncementListView.as_view(), name='announcements-history'),
 ]
 
 if settings.DEBUG:

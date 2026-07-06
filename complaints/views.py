@@ -275,9 +275,20 @@ class UserProfileView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class AdminComplaintStatusView(APIView):
-    permission_classes = [IsAdminOrCustomAdmin]
+    permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def patch(self, request, complaint_id):
+        user_profile = UserProfile.objects.filter(user=request.user).first()
+        if not user_profile:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        is_admin = user_profile.role and user_profile.role.role_name.lower() in ['admin', 'адміністратор']
+        is_assigned_worker = Ticket.objects.filter(complaint_id=complaint_id, user=user_profile).exists()
+        
+        if not is_admin and not is_assigned_worker:
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+            
         try:
             complaint = Complaint.objects.get(complaint_id=complaint_id)
         except Complaint.DoesNotExist:
@@ -295,8 +306,8 @@ class AdminComplaintStatusView(APIView):
             if old_status != updated_complaint.status:
                 try:
                     status_labels = {
-                        'pending': 'На розгляді',
-                        'published': 'Опубліковано',
+                        'pending': 'Очікує',
+                        'published': 'У роботі',
                         'denied': 'Відхилено',
                         'resolved': 'Вирішено'
                     }
@@ -334,21 +345,68 @@ class CommentListView(APIView):
         serializer = CommentSerializer(data=request.data)
         if serializer.is_valid():
             is_admin = user_profile.role and user_profile.role.role_name.lower() in ['admin', 'адміністратор']
-            if complaint.user != user_profile and not is_admin:
+            is_creator = complaint.user == user_profile
+            is_assigned_worker = Ticket.objects.filter(complaint=complaint, user=user_profile).exists()
+            
+            if not is_creator and not is_admin and not is_assigned_worker:
                 return Response({'error': 'Permission denied'},status=status.HTTP_403_FORBIDDEN)
+                
             serializer.save(user=user_profile, complaint_id=complaint_id)
             
-            if is_admin and complaint.user != user_profile:
-                try:
-                    Notification.objects.create(
-                        user=complaint.user,
-                        title="Новий коментар адміністратора",
-                        message=f"Адміністратор {user_profile.first_name} {user_profile.last_name} прокоментував вашу скаргу: {complaint.title}",
-                        complaint=complaint
-                    )
-                except Exception as e:
-                    print("Failed to create comment notification:", e)
-                    
+            is_worker_user = user_profile.role and user_profile.role.role_name.lower() in ['worker', 'робітник', 'майстер']
+
+            # Case A: Commented by a worker
+            if is_worker_user:
+                # Notify the student
+                if complaint.user != user_profile:
+                    try:
+                        title = "Новий коментар до вашої скарги"
+                        message = f"Працівник {user_profile.first_name} {user_profile.last_name} прокоментував вашу скаргу: '{complaint.title}'"
+                        Notification.objects.create(
+                            user=complaint.user,
+                            title=title,
+                            message=message,
+                            complaint=complaint
+                        )
+                    except Exception as e:
+                        print("Failed to notify student of worker comment:", e)
+
+
+
+            # Case B: Commented by student or admin
+            else:
+                # Notify the student (if admin commented)
+                if not is_creator:
+                    try:
+                        title = "Новий коментар до вашої скарги"
+                        role_label = "Адміністратор" if is_admin else "Працівник"
+                        message = f"{role_label} {user_profile.first_name} {user_profile.last_name} прокоментував вашу скаргу: '{complaint.title}'"
+                        Notification.objects.create(
+                            user=complaint.user,
+                            title=title,
+                            message=message,
+                            complaint=complaint
+                        )
+                    except Exception as e:
+                        print("Failed to create comment notification for student:", e)
+
+                # Notify the assigned worker(s) if any
+                assigned_tickets = Ticket.objects.filter(complaint=complaint).exclude(user=None)
+                for t in assigned_tickets:
+                    if t.user != user_profile:
+                        try:
+                            title = "Новий коментар до призначеної скарги"
+                            role_label = "Адміністратор" if is_admin else "Користувач"
+                            message = f"{role_label} {user_profile.first_name} {user_profile.last_name} прокоментував скаргу: '{complaint.title}'"
+                            Notification.objects.create(
+                                user=t.user,
+                                title=title,
+                                message=message,
+                                complaint=complaint
+                            )
+                        except Exception as e:
+                            print("Failed to notify worker of comment:", e)
+                            
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -363,9 +421,14 @@ class CommentListView(APIView):
             complaint = Complaint.objects.get(complaint_id=complaint_id)
         except Complaint.DoesNotExist:
             return Response({'error': 'Complaint not found'}, status=status.HTTP_404_NOT_FOUND)
+            
         is_admin = user_profile.role and user_profile.role.role_name.lower() in ['admin', 'адміністратор']
-        if complaint.user != user_profile and not is_admin:
+        is_creator = complaint.user == user_profile
+        is_assigned_worker = Ticket.objects.filter(complaint=complaint, user=user_profile).exists()
+        
+        if not is_creator and not is_admin and not is_assigned_worker:
             return Response({'error': 'Permission denied'},status=status.HTTP_403_FORBIDDEN)
+            
         comments =( Comment.objects
                    .filter(complaint_id=complaint_id)
                    .select_related("user")
@@ -407,24 +470,35 @@ class TicketView(APIView):
         user_profile = UserProfile.objects.filter(user=request.user).first()
         if not user_profile:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
-        if not user_profile.role or user_profile.role.role_name.lower() not in ['admin', 'адміністратор']:
+            
+        is_admin = user_profile.role and user_profile.role.role_name.lower() in ['admin', 'адміністратор']
+        is_worker = user_profile.role and user_profile.role.role_name.lower() == 'worker'
+        
+        if not is_admin and not is_worker:
             return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+            
         tickets = Ticket.objects.all()
+        if is_worker:
+            tickets = tickets.filter(user=user_profile)
+        else:
+            worker_param = request.query_params.get('worker')
+            if worker_param:
+                tickets = tickets.filter(user_id=worker_param)
+                
         date_from_param = request.query_params.get('date_from')
         date_to_param = request.query_params.get('date_to')
-        worker_param = request.query_params.get('worker')
         priority_param = request.query_params.get('priority')
-        if worker_param:
-            tickets = tickets.filter(user_id=worker_param)
+        
         if priority_param:
             tickets = tickets.filter(complaint__priority=priority_param)
         if date_from_param:
             tickets = tickets.filter(deadline__gte=date_from_param)
         if date_to_param:
             tickets = tickets.filter(deadline__lte=date_to_param)
+            
         serializer = TicketSerializer(tickets, many=True)
-
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     def post(self,request):
         user_profile = UserProfile.objects.filter(user=request.user).first()
         if not user_profile:
@@ -461,7 +535,22 @@ class TicketView(APIView):
         data = request.data.copy()
         serializer = TicketSerializer(data=data)
         if serializer.is_valid():
-            serializer.save(complaint=target_complaint, user=target_worker)
+            ticket = serializer.save(complaint=target_complaint, user=target_worker)
+            
+            # Create notification for worker when assigned a ticket
+            if target_worker and target_complaint:
+                try:
+                    title = "Призначено скаргу"
+                    message = f"Адміністратор призначив вам скаргу: '{target_complaint.title}'"
+                    Notification.objects.create(
+                        user=target_worker,
+                        title=title,
+                        message=message,
+                        complaint=target_complaint
+                    )
+                except Exception as e:
+                    print("Error creating worker notification on ticket post:", e)
+                    
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -472,12 +561,21 @@ class TicketDetailView(APIView):
         user_profile = UserProfile.objects.filter(user=request.user).first()
         if not user_profile:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
-        if not user_profile.role or user_profile.role.role_name.lower() not in ['admin', 'адміністратор']:
+            
+        is_admin = user_profile.role and user_profile.role.role_name.lower() in ['admin', 'адміністратор']
+        is_worker = user_profile.role and user_profile.role.role_name.lower() == 'worker'
+        
+        if not is_admin and not is_worker:
             return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+            
         try:
             ticket = Ticket.objects.get(ticket_id=ticket_id)
         except Ticket.DoesNotExist:
             return Response({'error': 'Ticket not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        if is_worker and ticket.user != user_profile:
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+            
         serializer = TicketSerializer(ticket)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -491,27 +589,84 @@ class TicketDetailView(APIView):
         except Ticket.DoesNotExist:
             return Response({'error': 'Ticket not found'}, status=status.HTTP_404_NOT_FOUND)
         
+        old_worker = ticket.user
+        old_deadline = ticket.deadline
+        
         worker_id = request.data.get('user')
+        worker_changed = False
         if worker_id is not None:
             if worker_id == "":
                 ticket.user = None
+                worker_changed = old_worker is not None
             else:
                 try:
                     target_worker = UserProfile.objects.get(user_id=worker_id)
                     if not target_worker.role or target_worker.role.role_name.lower() != 'worker':
                         return Response({'error': 'User is not a worker'}, status=status.HTTP_400_BAD_REQUEST)
                     ticket.user = target_worker
+                    worker_changed = old_worker != target_worker
                 except UserProfile.DoesNotExist:
                     return Response({'error': 'Worker not found'}, status=status.HTTP_404_NOT_FOUND)
         
         deadline = request.data.get('deadline')
+        deadline_changed = False
         if deadline is not None:
             if deadline == "":
                 ticket.deadline = None
+                deadline_changed = old_deadline is not None
             else:
                 ticket.deadline = deadline
             
         ticket.save()
+        ticket.refresh_from_db()
+        
+        # After save, check if deadline changed
+        if old_deadline != ticket.deadline:
+            deadline_changed = True
+            
+        # Send notifications
+        # 1. Assignment notification to NEW worker
+        if worker_changed and ticket.user:
+            try:
+                title = "Призначено скаргу"
+                message = f"Адміністратор призначив вам скаргу: '{ticket.complaint.title}'"
+                Notification.objects.create(
+                    user=ticket.user,
+                    title=title,
+                    message=message,
+                    complaint=ticket.complaint
+                )
+            except Exception as e:
+                print("Error creating worker notification in patch:", e)
+                
+        # 2. Deadline change notification to CURRENT worker
+        if deadline_changed and ticket.user and not worker_changed:
+            try:
+                def format_dt(dt):
+                    if not dt:
+                        return "не вказано"
+                    try:
+                        import zoneinfo
+                        kyiv_tz = zoneinfo.ZoneInfo("Europe/Kyiv")
+                        local_dt = dt.astimezone(kyiv_tz)
+                        return local_dt.strftime("%d.%m.%Y %H:%M")
+                    except Exception:
+                        return str(dt)
+                
+                old_deadline_str = format_dt(old_deadline)
+                new_deadline_str = format_dt(ticket.deadline)
+                
+                title = "Зміна дедлайну"
+                message = f"Адміністратор змінив дедлайн призначеної скарги з '{old_deadline_str}' на '{new_deadline_str}'"
+                Notification.objects.create(
+                    user=ticket.user,
+                    title=title,
+                    message=message,
+                    complaint=ticket.complaint
+                )
+            except Exception as e:
+                print("Error creating deadline change notification:", e)
+                
         serializer = TicketSerializer(ticket)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -598,4 +753,55 @@ class ChangeUserRoomView(APIView):
         user_profile.save()
         
         return Response({'detail': 'Room updated successfully'}, status=status.HTTP_200_OK)
+
+
+class CampusStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from .models import CampusStatus
+        from .serializers import CampusStatusSerializer
+        status_obj = CampusStatus.objects.first()
+        if not status_obj:
+            status_obj = CampusStatus.objects.create()
+        serializer = CampusStatusSerializer(status_obj)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        from .models import CampusStatus, Announcement
+        from .serializers import CampusStatusSerializer
+        user_profile = UserProfile.objects.filter(user=request.user).first()
+        if not user_profile or not user_profile.role or user_profile.role.role_name.lower() not in ['admin', 'адміністратор']:
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+
+        status_obj = CampusStatus.objects.first()
+        if not status_obj:
+            status_obj = CampusStatus.objects.create()
+        
+        serializer = CampusStatusSerializer(status_obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            
+            # If announcement text is provided, persist it to announcement history
+            announcement_title = request.data.get('announcement_title')
+            announcement_text = request.data.get('announcement_text')
+            if announcement_title and announcement_text:
+                Announcement.objects.create(
+                    title=announcement_title.strip(),
+                    text=announcement_text.strip()
+                )
+                
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AnnouncementListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from .models import Announcement
+        from .serializers import AnnouncementSerializer
+        announcements = Announcement.objects.all().order_by('-created_at')
+        serializer = AnnouncementSerializer(announcements, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 

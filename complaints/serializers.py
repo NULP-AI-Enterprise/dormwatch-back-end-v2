@@ -31,13 +31,13 @@ class UserSerializer(serializers.ModelSerializer):
     role = RoleSerializer(read_only=True)
     class Meta:
         model = UserProfile
-        fields = ['user', 'first_name', 'last_name', 'email', 'place', 'photo_url', 'role']
+        fields = ['user', 'first_name', 'last_name', 'email', 'place', 'photo_url', 'role', 'contact_info']
 
 
 class UpdateUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['first_name', 'last_name', 'email', 'photo_url']
+        fields = ['first_name', 'last_name', 'email', 'photo_url', 'contact_info']
 
 
 class UpdateUserPlaceSerializer(serializers.Serializer):
@@ -53,16 +53,38 @@ class CategorySerializer(serializers.ModelSerializer):
 class UserComplaintSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['user', 'first_name', 'last_name', 'photo_url']
+        fields = ['user', 'first_name', 'last_name', 'photo_url', 'contact_info']
 
 class ComplaintSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     place = PlaceSerializer(read_only=True)
     user = UserComplaintSerializer(read_only=True)
+    assigned_worker = serializers.SerializerMethodField()
+    deadline = serializers.SerializerMethodField()
+    comments_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Complaint
-        fields = ['complaint_id', 'user', 'title', 'description', 'category', 'status', 'photo_url', 'thumbnail', 'created_at', 'place', 'priority']
-        read_only_fields = ['complaint_id', 'created_at', 'user', 'status']
+        fields = ['complaint_id', 'user', 'title', 'description', 'category', 'status', 'photo_url', 'thumbnail', 'created_at', 'place', 'priority', 'photo_after', 'assigned_worker', 'deadline', 'comments_count']
+        read_only_fields = ['complaint_id', 'created_at', 'user']
+
+    def get_assigned_worker(self, obj):
+        from .models import Ticket
+        from .serializers import UserComplaintSerializer
+        ticket = Ticket.objects.filter(complaint=obj).first()
+        if ticket and ticket.user:
+            return UserComplaintSerializer(ticket.user).data
+        return None
+
+    def get_deadline(self, obj):
+        from .models import Ticket
+        ticket = Ticket.objects.filter(complaint=obj).first()
+        if ticket and ticket.deadline:
+            return ticket.deadline.isoformat()
+        return None
+
+    def get_comments_count(self, obj):
+        return obj.comment_set.count()
 
     def create(self, validated_data):
         uploaded_file = validated_data.pop('photo_url', None)
@@ -75,9 +97,10 @@ class ComplaintSerializer(serializers.ModelSerializer):
 
 class TicketSerializer(serializers.ModelSerializer):
     user = UserComplaintSerializer(read_only=True)
+    complaint_detail = ComplaintSerializer(source='complaint', read_only=True)
     class Meta:
         model = Ticket
-        fields = ['ticket_id', 'user', 'complaint', 'deadline']
+        fields = ['ticket_id', 'user', 'complaint', 'complaint_detail', 'deadline']
 
 
 class UpdateUserRoleSerializer(serializers.ModelSerializer):
@@ -89,18 +112,22 @@ class UpdateUserRoleSerializer(serializers.ModelSerializer):
 class ComplaintStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Complaint
-        fields = ['status', 'priority']
+        fields = ['status', 'priority', 'photo_after']
 
     
 class CommentSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
+    user_role = serializers.SerializerMethodField()
     class Meta:
         model = Comment
-        fields = ['comment_id','complaint','user','user_name', 'description', 'created_at']
+        fields = ['comment_id','complaint','user','user_name', 'user_role', 'description', 'created_at']
         read_only_fields = ("created_at", "user",'complaint')
 
     def get_user_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+    def get_user_role(self, obj):
+        return obj.user.role.role_name.lower() if (obj.user.role and obj.user.role.role_name) else 'student'
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -145,4 +172,18 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ['notification_id', 'user', 'title', 'message', 'complaint', 'is_read', 'created_at']
+
+
+class CampusStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        from .models import CampusStatus
+        model = CampusStatus
+        fields = '__all__'
+
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+    class Meta:
+        from .models import Announcement
+        model = Announcement
+        fields = '__all__'
 

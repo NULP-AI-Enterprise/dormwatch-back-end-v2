@@ -63,6 +63,7 @@ class UserProfile(models.Model):
     password = models.CharField(max_length=255, blank=True, null=True)
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True, blank=True)
     place = models.ForeignKey(Place, on_delete=models.CASCADE, null=True, blank=True)
+    contact_info = models.CharField(max_length=255, blank=True, default='')
     
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -92,6 +93,7 @@ class Complaint(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     category = models.ForeignKey(ComplaintCategory, on_delete=models.CASCADE)
     priority = models.CharField(max_length=50, choices=COMPLAINT_PRIORITY, default='medium')
+    photo_after = models.ImageField(upload_to='complaint_photos_after/', blank=True, null=True)
     
 
     def __str__(self):
@@ -133,6 +135,33 @@ class Notification(models.Model):
 
     class Meta:
         db_table = 'notification'
+        ordering = ['-created_at']
+
+
+class CampusStatus(models.Model):
+    status_id = models.AutoField(primary_key=True)
+    water_status = models.CharField(max_length=20, default='stable') # stable, warning, critical
+    electricity_status = models.CharField(max_length=20, default='stable')
+    heating_status = models.CharField(max_length=20, default='stable')
+    internet_status = models.CharField(max_length=20, default='stable')
+    elevators_status = models.CharField(max_length=20, default='stable')
+    
+    announcement_title = models.CharField(max_length=200, blank=True, default='')
+    announcement_text = models.TextField(blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'campus_status'
+
+
+class Announcement(models.Model):
+    announcement_id = models.AutoField(primary_key=True)
+    title = models.CharField(max_length=200)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'announcement'
         ordering = ['-created_at']
 
 
