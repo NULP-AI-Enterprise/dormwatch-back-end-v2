@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dormwatch
+  namespace: dormwatch
+  labels:
+    app: dormwatch
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dormwatch
+  template:
+    metadata:
+      labels:
+        app: dormwatch
+    spec:
+      containers:
+        - name: dormwatch
+          image: ghcr.io/nulp-ai-enterprise/dormwatch-back-end-v2:sha-0000000
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dormwatch-secret
+                  key: SECRET_KEY
+            - name: DEBUG
+              value: "false"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: dormwatch-secret
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: dormwatch-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dormwatch-secret
+                  key: DB_PASSWORD
+            - name: DB_HOST
+              value: "postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: CORS_ALLOWED_ORIGINS
+              valueFrom:
+                secretKeyRef:
+                  name: dormwatch-secret
+                  key: CORS_ALLOWED_ORIGINS
+            - name: ALLOWED_HOSTS
+              value: "dormwatch.thesis-i.com,127.0.0.1"
+            - name: ALLOWED_EMAIL_DOMAINS
+              value: "lpnu.ua"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            failureThreshold: 12
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      imagePullSecrets:
+        - name: ghcr-secret
