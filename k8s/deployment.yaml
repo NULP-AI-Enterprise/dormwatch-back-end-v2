@@ -76,6 +76,7 @@ spec:
                   value: dormwatch-api.thesis-i.com
             failureThreshold: 12
             periodSeconds: 10
+            timeoutSeconds: 10
           livenessProbe:
             httpGet:
               path: /api/health
