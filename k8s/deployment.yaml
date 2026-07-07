@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: dormwatch
-          image: ghcr.io/nulp-ai-enterprise/dormwatch-back-end-v2:sha-96d1df9
+          image: ghcr.io/nulp-ai-enterprise/dormwatch-back-end-v2:sha-94c943c
           imagePullPolicy: Always
           ports:
             - name: http
