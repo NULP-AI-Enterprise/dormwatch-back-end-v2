@@ -34,6 +34,7 @@ def _set_refresh_cookie(response, refresh_token):
 
 
 class LoginView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -68,6 +69,7 @@ class LoginView(APIView):
 
 
 class RegisterView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -109,6 +111,7 @@ class RegisterView(APIView):
 
 
 class CookieTokenRefreshView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -159,6 +162,7 @@ class LogoutView(APIView):
 
 
 class BuildingListView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -168,6 +172,7 @@ class BuildingListView(APIView):
 
 
 class PlaceListView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):

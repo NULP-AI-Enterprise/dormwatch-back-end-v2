@@ -94,6 +94,9 @@ CORS_ALLOWED_ORIGINS = [
     for o in os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
     if o.strip()
 ]
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://[\w-]+\.thesis-i\.com$",
+]
 CORS_ALLOW_CREDENTIALS = True
 
 
