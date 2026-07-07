@@ -68,34 +68,31 @@ spec:
               cpu: 1000m
               memory: 512Mi
           startupProbe:
-            httpGet:
-              path: /api/health
-              port: 8000
-              httpHeaders:
-                - name: Host
-                  value: dormwatch-api.thesis-i.com
+            exec:
+              command:
+                - python
+                - -c
+                - "import urllib.request, sys; req = urllib.request.Request('http://127.0.0.1:8000/api/health'); req.add_header('Host', '127.0.0.1'); r = urllib.request.urlopen(req, timeout=9); sys.exit(0 if r.status == 200 else 1)"
             failureThreshold: 12
             periodSeconds: 10
             timeoutSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /api/health
-              port: 8000
-              httpHeaders:
-                - name: Host
-                  value: dormwatch-api.thesis-i.com
+            exec:
+              command:
+                - python
+                - -c
+                - "import urllib.request, sys; req = urllib.request.Request('http://127.0.0.1:8000/api/health'); req.add_header('Host', '127.0.0.1'); r = urllib.request.urlopen(req, timeout=9); sys.exit(0 if r.status == 200 else 1)"
             periodSeconds: 30
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /api/health
-              port: 8000
-              httpHeaders:
-                - name: Host
-                  value: dormwatch-api.thesis-i.com
+            exec:
+              command:
+                - python
+                - -c
+                - "import urllib.request, sys; req = urllib.request.Request('http://127.0.0.1:8000/api/health'); req.add_header('Host', '127.0.0.1'); r = urllib.request.urlopen(req, timeout=9); sys.exit(0 if r.status == 200 else 1)"
             periodSeconds: 10
-            timeoutSeconds: 3
+            timeoutSeconds: 10
             failureThreshold: 3
       imagePullSecrets:
         - name: ghcr-secret
