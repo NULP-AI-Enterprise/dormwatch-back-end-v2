@@ -312,8 +312,21 @@ class AdminComplaintStatusView(APIView):
                         'resolved': 'Вирішено'
                     }
                     status_label = status_labels.get(updated_complaint.status, updated_complaint.status)
-                    title = f"Оновлення статусу: {updated_complaint.title}"
-                    message = f"Статус скарги змінено на: {status_label}"
+                    
+                    if updated_complaint.status == 'resolved':
+                        title = "Заявку виконано! 🎉"
+                        message = f"Майстер завершив ремонт за вашою заявкою '{updated_complaint.title}'. Будь ласка, перевірте результат та залиште відгук, якщо виникнуть питання."
+                    elif updated_complaint.status == 'denied':
+                        title = "Заявку відхилено ❌"
+                        reason = updated_complaint.rejection_reason or ""
+                        if reason:
+                            message = f"Вашу заявку '{updated_complaint.title}' було відхилено. Причина: {reason}"
+                        else:
+                            message = f"Вашу заявку '{updated_complaint.title}' було відхилено."
+                    else:
+                        title = f"Оновлення статусу: {updated_complaint.title}"
+                        message = f"Статус скарги змінено на: {status_label}"
+                        
                     Notification.objects.create(
                         user=updated_complaint.user,
                         title=title,
@@ -480,6 +493,34 @@ class TicketView(APIView):
         tickets = Ticket.objects.all()
         if is_worker:
             tickets = tickets.filter(user=user_profile)
+            
+            # Check for approaching deadlines (< 24 hours) for unresolved tickets
+            from django.utils import timezone
+            from datetime import timedelta
+            now = timezone.now()
+            tomorrow = now + timedelta(hours=24)
+            approaching = tickets.filter(
+                deadline__gt=now,
+                deadline__lte=tomorrow,
+                complaint__status__in=['pending', 'published', 'active']
+            )
+            for t in approaching:
+                warning_title = "Наближається дедлайн ⏳"
+                exists = Notification.objects.filter(
+                    user=user_profile,
+                    title=warning_title,
+                    complaint=t.complaint
+                ).exists()
+                if not exists:
+                    try:
+                        Notification.objects.create(
+                            user=user_profile,
+                            title=warning_title,
+                            message=f"Нагадування: термін виконання призначеної заявки '{t.complaint.title}' спливає менш ніж через 24 години! Будь ласка, оновіть статус роботи.",
+                            complaint=t.complaint
+                        )
+                    except Exception as ne:
+                        print("Error creating deadline warning notification:", ne)
         else:
             worker_param = request.query_params.get('worker')
             if worker_param:
@@ -550,6 +591,20 @@ class TicketView(APIView):
                     )
                 except Exception as e:
                     print("Error creating worker notification on ticket post:", e)
+            
+            # Create notification for student when worker is assigned
+            if target_complaint and target_complaint.user and target_worker:
+                try:
+                    student_title = "Призначено майстра 🛠️"
+                    student_message = f"До вашої заявки '{target_complaint.title}' призначено майстра {target_worker.first_name} {target_worker.last_name}. Очікуйте на виконання роботи."
+                    Notification.objects.create(
+                        user=target_complaint.user,
+                        title=student_title,
+                        message=student_message,
+                        complaint=target_complaint
+                    )
+                except Exception as e:
+                    print("Failed to notify student of worker assignment on ticket post:", e)
                     
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -638,6 +693,20 @@ class TicketDetailView(APIView):
                 )
             except Exception as e:
                 print("Error creating worker notification in patch:", e)
+            
+            # Send notification to the student about worker assignment
+            if ticket.complaint and ticket.complaint.user:
+                try:
+                    student_title = "Призначено майстра 🛠️"
+                    student_message = f"До вашої заявки '{ticket.complaint.title}' призначено майстра {ticket.user.first_name} {ticket.user.last_name}. Очікуйте на виконання роботи."
+                    Notification.objects.create(
+                        user=ticket.complaint.user,
+                        title=student_title,
+                        message=student_message,
+                        complaint=ticket.complaint
+                    )
+                except Exception as se:
+                    print("Failed to notify student of worker assignment on ticket patch:", se)
                 
         # 2. Deadline change notification to CURRENT worker
         if deadline_changed and ticket.user and not worker_changed:
@@ -804,4 +873,74 @@ class AnnouncementListView(APIView):
         announcements = Announcement.objects.all().order_by('-created_at')
         serializer = AnnouncementSerializer(announcements, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AdminResidentsListView(APIView):
+    def get_permissions(self):
+        from .permissions import IsCustomAdmin
+        return [IsCustomAdmin()]
+
+    def get(self, request):
+        from .models import UserProfile
+        from .serializers import UserSerializer
+        
+        building_id = request.query_params.get('building_id')
+        queryset = UserProfile.objects.filter(role__role_name='student').select_related('place__building', 'role')
+        
+        if building_id:
+            if building_id == 'unassigned':
+                queryset = queryset.filter(place__isnull=True)
+            else:
+                queryset = queryset.filter(place__building_id=building_id)
+                
+        serializer = UserSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AdminRelocateResidentView(APIView):
+    def get_permissions(self):
+        from .permissions import IsCustomAdmin
+        return [IsCustomAdmin()]
+
+    def post(self, request):
+        from .models import UserProfile, DormitoryBuilding, Place
+        from .serializers import UserSerializer
+        
+        profile_user_id = request.data.get('user_id')
+        building_id = request.data.get('building_id')
+        room_name = request.data.get('room_name', '').strip()
+        
+        if not profile_user_id or not building_id or not room_name:
+            return Response({'error': 'user_id, building_id, and room_name are required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            profile = UserProfile.objects.get(user_id=profile_user_id)
+        except UserProfile.DoesNotExist:
+            return Response({'error': 'Resident profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        try:
+            building = DormitoryBuilding.objects.get(building_id=building_id)
+        except DormitoryBuilding.DoesNotExist:
+            return Response({'error': 'Building not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        place, _ = Place.objects.get_or_create(
+            building=building,
+            place_name=room_name
+        )
+        
+        profile.place = place
+        profile.save()
+        
+        # Create student notification for relocation
+        try:
+            Notification.objects.create(
+                user=profile,
+                title="Вас переселено 🏠",
+                message=f"Адміністратор оновив ваші дані проживання. Нова адреса: {building.name}, кімната {place.place_name}.",
+                complaint=None
+            )
+        except Exception as ne:
+            print("Error creating relocation notification:", ne)
+            
+        return Response(UserSerializer(profile).data, status=status.HTTP_200_OK)
 

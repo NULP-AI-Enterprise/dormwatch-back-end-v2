@@ -27,6 +27,7 @@ class DormitoryBuilding(models.Model):
     building_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     address = models.TextField()
+    commandant_phone = models.CharField(max_length=50, blank=True, default='')
 
     class Meta:
         db_table = 'dormitory_building'
@@ -94,6 +95,7 @@ class Complaint(models.Model):
     category = models.ForeignKey(ComplaintCategory, on_delete=models.CASCADE)
     priority = models.CharField(max_length=50, choices=COMPLAINT_PRIORITY, default='medium')
     photo_after = models.ImageField(upload_to='complaint_photos_after/', blank=True, null=True)
+    rejection_reason = models.TextField(blank=True, default='')
     
 
     def __str__(self):
@@ -162,6 +164,24 @@ class Announcement(models.Model):
 
     class Meta:
         db_table = 'announcement'
+        ordering = ['-created_at']
+
+
+import secrets
+
+def generate_invite_token():
+    return secrets.token_urlsafe(64)
+
+class RegistrationInvite(models.Model):
+    id = models.AutoField(primary_key=True)
+    token = models.CharField(max_length=255, unique=True, default=generate_invite_token)
+    role_name = models.CharField(max_length=50)
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='created_invites')
+
+    class Meta:
+        db_table = 'registration_invite'
         ordering = ['-created_at']
 
 

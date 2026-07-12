@@ -10,6 +10,7 @@ urlpatterns = [
     path('auth/register/', auth_views.RegisterView.as_view(), name='auth-register'),
     path('auth/refresh/', auth_views.CookieTokenRefreshView.as_view(), name='auth-refresh'),
     path('auth/logout/', auth_views.LogoutView.as_view(), name='auth-logout'),
+    path('auth/change-password/', auth_views.ChangePasswordView.as_view(), name='auth-change-password'),
     path('buildings/', auth_views.BuildingListView.as_view(), name='buildings'),
     path('places/', auth_views.PlaceListView.as_view(), name='places'),
     path('complaints/', views.ComplaintView.as_view(), name='complaint'),
@@ -30,6 +31,12 @@ urlpatterns = [
     path('notifications/mark-all-read/', views.NotificationMarkAllReadView.as_view(), name='notifications-mark-all-read'),
     path('campus-status/', views.CampusStatusView.as_view(), name='campus-status'),
     path('announcements-history/', views.AnnouncementListView.as_view(), name='announcements-history'),
+    path('buildings/<int:building_id>/', auth_views.BuildingDetailView.as_view(), name='building-detail'),
+    path('auth/invites/', auth_views.InviteCreateView.as_view(), name='invite-create'),
+    path('auth/invites/<str:token>/', auth_views.InviteDetailView.as_view(), name='invite-detail'),
+    path('auth/invites/<str:token>/register/', auth_views.InviteRegisterView.as_view(), name='invite-register'),
+    path('admin/residents/', views.AdminResidentsListView.as_view(), name='admin-residents'),
+    path('admin/residents/relocate/', views.AdminRelocateResidentView.as_view(), name='admin-residents-relocate'),
 ]
 
 if settings.DEBUG:

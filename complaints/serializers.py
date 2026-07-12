@@ -9,7 +9,7 @@ from .image_utils import process_complaint_photo
 class DormitoryBuildingSerializer(serializers.ModelSerializer):
     class Meta:
         model = DormitoryBuilding
-        fields = ("building_id", "name", "address")
+        fields = ("building_id", "name", "address", "commandant_phone")
 
 
 class PlaceSerializer(serializers.ModelSerializer):
@@ -65,7 +65,7 @@ class ComplaintSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Complaint
-        fields = ['complaint_id', 'user', 'title', 'description', 'category', 'status', 'photo_url', 'thumbnail', 'created_at', 'place', 'priority', 'photo_after', 'assigned_worker', 'deadline', 'comments_count']
+        fields = ['complaint_id', 'user', 'title', 'description', 'category', 'status', 'photo_url', 'thumbnail', 'created_at', 'place', 'priority', 'photo_after', 'assigned_worker', 'deadline', 'comments_count', 'rejection_reason']
         read_only_fields = ['complaint_id', 'created_at', 'user']
 
     def get_assigned_worker(self, obj):
@@ -112,7 +112,7 @@ class UpdateUserRoleSerializer(serializers.ModelSerializer):
 class ComplaintStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Complaint
-        fields = ['status', 'priority', 'photo_after']
+        fields = ['status', 'priority', 'photo_after', 'rejection_reason']
 
     
 class CommentSerializer(serializers.ModelSerializer):
