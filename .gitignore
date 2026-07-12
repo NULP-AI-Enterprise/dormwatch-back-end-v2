@@ -17,6 +17,9 @@ venv/
 .env.*
 !.env.example
 
+# Kubernetes plain secrets (sealed version is committed instead)
+k8s/secret.yaml
+
 # OS
 .DS_Store
 Thumbs.db

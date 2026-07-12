@@ -36,6 +36,7 @@ def _set_refresh_cookie(response, refresh_token):
 
 
 class LoginView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -73,6 +74,7 @@ class LoginView(APIView):
 
 
 class RegisterView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -114,6 +116,7 @@ class RegisterView(APIView):
 
 
 class CookieTokenRefreshView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -173,6 +176,12 @@ class LogoutView(APIView):
 
 
 class BuildingListView(APIView):
+    def get_authenticators(self):
+        if self.request.method == 'POST':
+            from .authentication import EmailDomainJWTAuthentication
+            return [EmailDomainJWTAuthentication()]
+        return []
+
     def get_permissions(self):
         if self.request.method == 'POST':
             from .permissions import IsCustomAdmin
@@ -193,6 +202,12 @@ class BuildingListView(APIView):
 
 
 class PlaceListView(APIView):
+    def get_authenticators(self):
+        if self.request.method == 'POST':
+            from .authentication import EmailDomainJWTAuthentication
+            return [EmailDomainJWTAuthentication()]
+        return []
+
     def get_permissions(self):
         if self.request.method == 'POST':
             from .permissions import IsCustomAdmin
